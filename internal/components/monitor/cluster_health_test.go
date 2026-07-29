@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 func TestNewClusterHealthResult_ProjectsAndBoundsEvents(t *testing.T) {
@@ -61,5 +63,8 @@ func TestRegisterClusterHealth_TypedReadOnlyContract(t *testing.T) {
 	}
 	if tool.OutputSchema.Type == "" || len(tool.OutputSchema.Properties) == 0 {
 		t.Fatalf("tool has no generated structured output schema: %#v", tool.OutputSchema)
+	}
+	if tool.Execution == nil || tool.Execution.TaskSupport != mcp.TaskSupportOptional {
+		t.Fatalf("cluster-health must expose optional MCP task support: %#v", tool.Execution)
 	}
 }

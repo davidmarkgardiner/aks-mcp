@@ -64,6 +64,10 @@ func RegisterClusterHealth() mcp.Tool {
 	return mcp.NewTool("aks_cluster_health",
 		mcp.WithDescription("Return a bounded, structured, read-only Azure Resource Health snapshot for one AKS cluster."),
 		mcp.WithReadOnlyHintAnnotation(true),
+		// The same read-only handler may be executed as an MCP Task for slow
+		// Resource Health queries. mcp-go supplies the task handle, bounded
+		// progress state, polling endpoint, cancellation and TTL handling.
+		mcp.WithTaskSupport(mcp.TaskSupportOptional),
 		mcp.WithInputSchema[ClusterHealthRequest](),
 		mcp.WithOutputSchema[ClusterHealthResult](),
 	)

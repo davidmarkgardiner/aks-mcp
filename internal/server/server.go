@@ -133,6 +133,11 @@ func (s *Service) initializeInfrastructure() error {
 		server.WithPromptCapabilities(true),
 		server.WithLogging(),
 		server.WithRecovery(),
+		// Bounded task augmentation is enabled only for the read-only cluster
+		// health tool. The MCP server owns task handles, polling, cancellation
+		// and TTL; mutation tools remain synchronous.
+		server.WithTaskCapabilities(true, true, true),
+		server.WithMaxConcurrentTasks(4),
 	)
 	logger.Infof("MCP server initialized successfully")
 
