@@ -28,6 +28,7 @@ import (
 	"github.com/Azure/aks-mcp/internal/k8s"
 	"github.com/Azure/aks-mcp/internal/logger"
 	"github.com/Azure/aks-mcp/internal/prompts"
+	"github.com/Azure/aks-mcp/internal/remediation"
 	"github.com/Azure/aks-mcp/internal/server/httpsecurity"
 	"github.com/Azure/aks-mcp/internal/tools"
 	"github.com/Azure/aks-mcp/internal/version"
@@ -48,6 +49,7 @@ type Service struct {
 	oauthProvider    *oauth.AzureOAuthProvider
 	authMiddleware   *oauth.AuthMiddleware
 	endpointManager  *oauth.EndpointManager
+	remediation      *remediation.Manager
 }
 
 // ServiceOption defines a function that configures the AKS MCP service
@@ -80,9 +82,32 @@ func (s *Service) Initialize() error {
 
 	// Phase 2: Register all component tools
 	s.registerAllComponents()
+	s.registerRemediationTools()
 
 	logger.Infof("AKS MCP service initialization completed successfully")
 	return nil
+}
+
+func (s *Service) registerRemediationTools() {
+	// These tools are not part of the normal triage surface. An operator must
+	// explicitly enable the remediation component, and apply remains outside
+	// this process behind an Argo gate and restricted service account.
+	if !hasExplicitComponent("remediation", s.cfg.EnabledComponents) {
+		return
+	}
+	s.remediation = remediation.NewManager()
+	s.mcpServer.AddTool(remediation.PlanTool(), remediation.PlanHandler(s.remediation))
+	s.mcpServer.AddTool(remediation.ApproveTool(), remediation.ApprovalHandler(s.remediation))
+	s.mcpServer.AddTool(remediation.VerifyTool(), remediation.VerifyHandler(s.remediation))
+}
+
+func hasExplicitComponent(name string, enabled []string) bool {
+	for _, component := range enabled {
+		if strings.EqualFold(strings.TrimSpace(component), name) {
+			return true
+		}
+	}
+	return false
 }
 
 // initializeInfrastructure sets up the Azure client and MCP server

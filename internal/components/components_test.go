@@ -175,13 +175,13 @@ func TestIsComponentEnabled_InvalidComponent(t *testing.T) {
 
 func TestGetAllComponents(t *testing.T) {
 	components := GetAllComponents()
-	if len(components) != 12 {
-		t.Errorf("Expected 12 components, got: %d", len(components))
+	if len(components) != 13 {
+		t.Errorf("Expected 13 components, got: %d", len(components))
 	}
 
 	// Verify all expected components exist
 	expectedComponents := []string{
-		"az_cli", "monitor", "fleet", "network", "compute", "detectors", "advisor", "inspektorgadget",
+		"az_cli", "monitor", "fleet", "network", "compute", "detectors", "advisor", "inspektorgadget", "remediation",
 		"kubectl", "helm", "cilium", "hubble",
 	}
 

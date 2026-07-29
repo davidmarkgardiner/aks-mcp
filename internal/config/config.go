@@ -165,7 +165,7 @@ func (cfg *ConfigData) ParseFlags() {
 
 	// Component configuration
 	enabledComponents := flag.String("enabled-components", "",
-		"Comma-separated list of enabled components (empty means all components enabled). Available: az_cli,monitor,fleet,network,compute,detectors,advisor,inspektorgadget,kubectl,helm,cilium,hubble")
+		"Comma-separated list of enabled components (empty means all components enabled). Available: az_cli,monitor,fleet,network,compute,detectors,advisor,inspektorgadget,remediation,kubectl,helm,cilium,hubble")
 
 	// HTTP transport security: DNS-rebinding / cross-origin protections
 	// (apply to streamable-http and sse transports only).
