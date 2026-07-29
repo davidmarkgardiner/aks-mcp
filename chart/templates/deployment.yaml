@@ -109,6 +109,10 @@ spec:
             - "--token-auth-only"
             - "true"
             {{- end }}
+            {{- if .Values.taskStore.enabled }}
+            - "--task-store-dir"
+            - {{ .Values.taskStore.mountPath | quote }}
+            {{- end }}
             {{- if .Values.security.allowedHosts }}
             - "--allowed-host"
             - {{ join "," .Values.security.allowedHosts | quote }}
@@ -158,6 +162,10 @@ spec:
               mountPath: /tmp
             - name: azure-config
               mountPath: /home/mcp/.azure
+            {{- if .Values.taskStore.enabled }}
+            - name: task-store
+              mountPath: {{ .Values.taskStore.mountPath | quote }}
+            {{- end }}
             {{- if .Values.kubeconfig.enabled }}
             - name: kubeconfig
               mountPath: /home/mcp/.kube
@@ -177,6 +185,11 @@ spec:
           emptyDir: {}
         - name: azure-config
           emptyDir: {}
+        {{- if .Values.taskStore.enabled }}
+        - name: task-store
+          persistentVolumeClaim:
+            claimName: {{ required "taskStore.existingClaim is required when taskStore.enabled=true" .Values.taskStore.existingClaim }}
+        {{- end }}
         {{- if .Values.kubeconfig.enabled }}
         - name: kubeconfig
           secret:

@@ -125,10 +125,10 @@ func (s *Service) initializeInfrastructure() error {
 		}
 	}
 
-	// Create MCP server
-	s.mcpServer = server.NewMCPServer(
-		"AKS MCP",
-		version.GetVersion(),
+	// Create MCP server. Task augmentation is enabled only when an operator has
+	// supplied durable storage; advertising resumable task handles on a volatile
+	// filesystem would be misleading after a pod replacement.
+	mcpOptions := []server.ServerOption{
 		server.WithResourceCapabilities(true, true),
 		server.WithPromptCapabilities(true),
 		server.WithLogging(),
@@ -136,9 +136,18 @@ func (s *Service) initializeInfrastructure() error {
 		// Bounded task augmentation is enabled only for the read-only cluster
 		// health tool. The MCP server owns task handles, polling, cancellation
 		// and TTL; mutation tools remain synchronous.
-		server.WithTaskCapabilities(true, true, true),
-		server.WithMaxConcurrentTasks(4),
-	)
+	}
+	if s.cfg.TaskStoreDir != "" {
+		mcpOptions = append(mcpOptions,
+			server.WithTaskCapabilities(true, true, true),
+			server.WithMaxConcurrentTasks(4),
+			server.WithTaskStore(server.NewFileTaskStore(s.cfg.TaskStoreDir)),
+		)
+		logger.Infof("Durable MCP Tasks enabled with task store directory %q", s.cfg.TaskStoreDir)
+	} else {
+		logger.Infof("Durable MCP Tasks disabled: no task store directory configured")
+	}
+	s.mcpServer = server.NewMCPServer("AKS MCP", version.GetVersion(), mcpOptions...)
 	logger.Infof("MCP server initialized successfully")
 
 	return nil
@@ -686,7 +695,7 @@ func (s *Service) registerMonitoringComponent() {
 	s.mcpServer.AddTool(monitoringTool, tools.CreateResourceHandler(monitor.GetAksMonitoringHandler(s.azClient, s.cfg), s.cfg))
 
 	logger.Debugf("Registering structured read-only triage tool: aks_cluster_health")
-	clusterHealthTool := monitor.RegisterClusterHealth()
+	clusterHealthTool := monitor.RegisterClusterHealth(s.cfg.TaskStoreDir != "")
 	s.mcpServer.AddTool(clusterHealthTool, monitor.GetClusterHealthHandler(s.cfg))
 
 	// These tools expose the remaining typed triage.v1 signals.  Their handlers

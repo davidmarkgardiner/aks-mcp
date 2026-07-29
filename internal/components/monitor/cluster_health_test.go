@@ -57,7 +57,7 @@ func TestValidateClusterHealthRequest(t *testing.T) {
 }
 
 func TestRegisterClusterHealth_TypedReadOnlyContract(t *testing.T) {
-	tool := RegisterClusterHealth()
+	tool := RegisterClusterHealth(true)
 	if tool.Name != "aks_cluster_health" || tool.Annotations.ReadOnlyHint == nil || !*tool.Annotations.ReadOnlyHint {
 		t.Fatalf("tool is not declared as typed read-only triage: %#v", tool)
 	}
@@ -66,5 +66,12 @@ func TestRegisterClusterHealth_TypedReadOnlyContract(t *testing.T) {
 	}
 	if tool.Execution == nil || tool.Execution.TaskSupport != mcp.TaskSupportOptional {
 		t.Fatalf("cluster-health must expose optional MCP task support: %#v", tool.Execution)
+	}
+}
+
+func TestRegisterClusterHealth_DoesNotAdvertiseVolatileTasks(t *testing.T) {
+	tool := RegisterClusterHealth(false)
+	if tool.Execution != nil {
+		t.Fatalf("task support must be absent without durable storage: %#v", tool.Execution)
 	}
 }

@@ -60,17 +60,19 @@ type ClusterHealthResult struct {
 
 // RegisterClusterHealth registers the new typed, read-only triage tool. The
 // legacy aks_monitoring tool remains unchanged for backwards compatibility.
-func RegisterClusterHealth() mcp.Tool {
-	return mcp.NewTool("aks_cluster_health",
+func RegisterClusterHealth(enableTasks bool) mcp.Tool {
+	options := []mcp.ToolOption{
 		mcp.WithDescription("Return a bounded, structured, read-only Azure Resource Health snapshot for one AKS cluster."),
 		mcp.WithReadOnlyHintAnnotation(true),
-		// The same read-only handler may be executed as an MCP Task for slow
-		// Resource Health queries. mcp-go supplies the task handle, bounded
-		// progress state, polling endpoint, cancellation and TTL handling.
-		mcp.WithTaskSupport(mcp.TaskSupportOptional),
 		mcp.WithInputSchema[ClusterHealthRequest](),
 		mcp.WithOutputSchema[ClusterHealthResult](),
-	)
+	}
+	if enableTasks {
+		// The same read-only handler may be executed as a durable MCP Task only
+		// when the service has a configured persistent task store.
+		options = append(options, mcp.WithTaskSupport(mcp.TaskSupportOptional))
+	}
+	return mcp.NewTool("aks_cluster_health", options...)
 }
 
 // GetClusterHealthHandler adapts the existing read-only Resource Health query

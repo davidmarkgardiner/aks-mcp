@@ -119,6 +119,16 @@ telemetry:
   # OTLP endpoint for OpenTelemetry traces
   otlpEndpoint: ""
 
+# Durable MCP Task storage. When enabled, AKS-MCP exposes task polling and
+# cancellation only for the read-only aks_cluster_health tool. Use a ReadWriteOnce
+# claim and keep replicas at one unless replacing this file store with shared
+# storage. An emptyDir is deliberately not offered because pod replacement
+# would break a task handle.
+taskStore:
+  enabled: false
+  existingClaim: ""
+  mountPath: "/var/lib/aks-mcp/tasks"
+
 # Ingress configuration
 ingress:
   # Enable ingress for the application
