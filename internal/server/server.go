@@ -679,6 +679,10 @@ func (s *Service) registerMonitoringComponent() {
 	logger.Debugf("Registering monitoring tool: aks_monitoring")
 	monitoringTool := monitor.RegisterAksMonitoring()
 	s.mcpServer.AddTool(monitoringTool, tools.CreateResourceHandler(monitor.GetAksMonitoringHandler(s.azClient, s.cfg), s.cfg))
+
+	logger.Debugf("Registering structured read-only triage tool: aks_cluster_health")
+	clusterHealthTool := monitor.RegisterClusterHealth()
+	s.mcpServer.AddTool(clusterHealthTool, monitor.GetClusterHealthHandler(s.cfg))
 }
 
 // registerFleetComponent registers Azure fleet management tools
