@@ -868,6 +868,30 @@ go build -o aks-mcp ./cmd/aks-mcp
 
 ## Usage
 
+### Named AKS targets (token-auth `call_kubectl`)
+
+For a server that serves more than one AKS cluster, configure an operator-owned
+allowlist with `--aks-targets` (or `AZURE_AKS_TARGETS`). Each entry is
+`alias=full-managed-cluster-resource-id`:
+
+```bash
+aks-mcp --token-auth-only \
+  --aks-targets 'development=/subscriptions/.../resourceGroups/.../providers/Microsoft.ContainerService/managedClusters/dev,production=/subscriptions/.../resourceGroups/.../providers/Microsoft.ContainerService/managedClusters/prod' \
+  --default-aks-target development
+```
+
+MCP callers may then provide `aks_target: "production"` to `call_kubectl`.
+The server resolves that alias before it constructs an Azure client. Unknown
+aliases fail before any Azure request. Once `--aks-targets` is set it is
+enforced as an allowlist: an explicit `aks_resource_id` is accepted only when it
+matches a configured target, and a request that selects no target at all is
+rejected unless `--default-aks-target` or `--default-aks-resource-id` is
+configured. Servers without `--aks-targets` keep the previous `aks_resource_id`
+behaviour. Aliases are an operator allowlist, not an authorization bypass:
+Azure RBAC and Kubernetes authorization still run against the resolved cluster
+resource ID. The alias flags apply to the token-auth `call_kubectl` tool
+(`--token-auth-only`).
+
 Ask any questions about your AKS clusters in your AI client, for example:
 
 ```

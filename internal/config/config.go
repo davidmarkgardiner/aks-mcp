@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/Azure/aks-mcp/internal/security"
 	"github.com/Azure/aks-mcp/internal/telemetry"
 	"github.com/Azure/aks-mcp/internal/version"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	flag "github.com/spf13/pflag"
 )
 
@@ -85,6 +87,14 @@ type ConfigData struct {
 	// Set via --default-aks-resource-id flag or AZURE_AKS_RESOURCE_ID environment variable.
 	DefaultAKSResourceID string
 
+	// AKSTargets maps operator-defined aliases to validated AKS managed-cluster
+	// resource IDs. Aliases are an allowlist convenience, never an authorization
+	// mechanism.
+	AKSTargets map[string]string
+	// DefaultAKSTarget selects an alias when callers omit both aks_target and
+	// aks_resource_id. It is resolved server-side.
+	DefaultAKSTarget string
+
 	// AllowedHosts is the set of HTTP Host header values (with or without port)
 	// that the streamable-http / sse transports will accept. Empty means
 	// loopback-only (the safe default). The literal "*" disables Host
@@ -115,6 +125,7 @@ func NewConfig() *ConfigData {
 		LogLevel:          "info",
 		UseLegacyTools:    os.Getenv("USE_LEGACY_TOOLS") == "true",
 		TokenAuthOnly:     false,
+		AKSTargets:        map[string]string{},
 		AllowedHosts:      []string{},
 		AllowedOrigins:    []string{},
 	}
@@ -178,6 +189,8 @@ func (cfg *ConfigData) ParseFlags() {
 	// Default AKS resource ID
 	flag.StringVar(&cfg.DefaultAKSResourceID, "default-aks-resource-id", "",
 		"Default AKS cluster resource ID used when aks_resource_id is not supplied by the caller (e.g. /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.ContainerService/managedClusters/{cluster}). Falls back to AZURE_AKS_RESOURCE_ID env var.")
+	aksTargets := flag.String("aks-targets", "", "Comma-separated allowlisted AKS target aliases (e.g. development=/subscriptions/.../managedClusters/dev,test=/subscriptions/.../managedClusters/test). Only applies to the token-auth call_kubectl tool (--token-auth-only). Falls back to AZURE_AKS_TARGETS.")
+	flag.StringVar(&cfg.DefaultAKSTarget, "default-aks-target", "", "Default configured AKS target alias used when neither aks_target nor aks_resource_id is supplied. Only applies to the token-auth call_kubectl tool (--token-auth-only). Falls back to AZURE_DEFAULT_AKS_TARGET.")
 
 	// Logging settings
 	flag.StringVar(&cfg.LogLevel, "log-level", "info", "Log level (debug, info, warn, error)")
@@ -227,6 +240,24 @@ func (cfg *ConfigData) ParseFlags() {
 	if cfg.DefaultAKSResourceID == "" {
 		cfg.DefaultAKSResourceID = os.Getenv("AZURE_AKS_RESOURCE_ID")
 	}
+	if *aksTargets == "" {
+		*aksTargets = os.Getenv("AZURE_AKS_TARGETS")
+	}
+	if cfg.DefaultAKSTarget == "" {
+		cfg.DefaultAKSTarget = os.Getenv("AZURE_DEFAULT_AKS_TARGET")
+	}
+	var targetErr error
+	cfg.AKSTargets, targetErr = parseAKSTargets(*aksTargets)
+	if targetErr != nil {
+		fmt.Printf("AKS target configuration error: %v\n", targetErr)
+		os.Exit(1)
+	}
+	if cfg.DefaultAKSTarget != "" {
+		if _, ok := cfg.AKSTargets[cfg.DefaultAKSTarget]; !ok {
+			fmt.Printf("AKS target configuration error: default AKS target %q is not configured\n", cfg.DefaultAKSTarget)
+			os.Exit(1)
+		}
+	}
 
 	// Parse enabled components
 	if *enabledComponents != "" {
@@ -242,6 +273,110 @@ func (cfg *ConfigData) ParseFlags() {
 	// Parse HTTP transport allowlists.
 	cfg.AllowedHosts = splitAndTrim(*allowedHosts)
 	cfg.AllowedOrigins = splitAndTrim(*trustedOrigins)
+}
+
+var aksTargetAlias = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+func parseAKSTargets(raw string) (map[string]string, error) {
+	targets := map[string]string{}
+	if strings.TrimSpace(raw) == "" {
+		return targets, nil
+	}
+	for _, item := range strings.Split(raw, ",") {
+		parts := strings.SplitN(strings.TrimSpace(item), "=", 2)
+		if len(parts) != 2 || !aksTargetAlias.MatchString(parts[0]) || strings.TrimSpace(parts[1]) == "" {
+			return nil, fmt.Errorf("invalid AKS target %q; use alias=/subscriptions/.../managedClusters/name", item)
+		}
+		if _, exists := targets[parts[0]]; exists {
+			return nil, fmt.Errorf("duplicate AKS target alias %q", parts[0])
+		}
+		resourceID, err := arm.ParseResourceID(strings.TrimSpace(parts[1]))
+		if err != nil || resourceID.SubscriptionID == "" || resourceID.ResourceGroupName == "" || resourceID.Name == "" || !strings.EqualFold(resourceID.ResourceType.String(), "Microsoft.ContainerService/managedClusters") {
+			return nil, fmt.Errorf("AKS target %q has an invalid resource ID", parts[0])
+		}
+		targets[parts[0]] = strings.TrimSpace(parts[1])
+	}
+	return targets, nil
+}
+
+// SortedAKSTargetAliases returns the configured aliases in a stable order so
+// tool schemas and error messages advertise the same allowlist.
+func SortedAKSTargetAliases(targets map[string]string) []string {
+	aliases := make([]string, 0, len(targets))
+	for alias := range targets {
+		aliases = append(aliases, alias)
+	}
+	sort.Strings(aliases)
+	return aliases
+}
+
+// ResolveAKSResourceID copies params and replaces a configured aks_target with
+// its allowlisted resource ID. When targets are configured they are an
+// allowlist: a supplied aks_target must be known and a supplied aks_resource_id
+// must match one of the configured targets. Callers receive an error before any
+// Azure client is constructed.
+func (cfg *ConfigData) ResolveAKSResourceID(params map[string]interface{}) (map[string]interface{}, error) {
+	resolved := make(map[string]interface{}, len(params)+1)
+	for key, value := range params {
+		resolved[key] = value
+	}
+
+	requestedID, _ := resolved["aks_resource_id"].(string)
+	requestedID = strings.TrimSpace(requestedID)
+
+	if target, _ := resolved["aks_target"].(string); strings.TrimSpace(target) != "" {
+		resourceID, ok := cfg.AKSTargets[strings.TrimSpace(target)]
+		if !ok {
+			return nil, fmt.Errorf("unknown AKS target alias %q; configured aliases: %s",
+				strings.TrimSpace(target), strings.Join(SortedAKSTargetAliases(cfg.AKSTargets), ", "))
+		}
+		resolved["aks_resource_id"] = resourceID
+		return resolved, nil
+	}
+
+	if len(cfg.AKSTargets) > 0 {
+		if requestedID != "" {
+			if !cfg.isAllowlistedAKSResourceID(requestedID) {
+				return nil, fmt.Errorf("aks_resource_id %q is not a configured AKS target; supply aks_target with one of: %s",
+					requestedID, strings.Join(SortedAKSTargetAliases(cfg.AKSTargets), ", "))
+			}
+			resolved["aks_resource_id"] = requestedID
+			return resolved, nil
+		}
+		if cfg.DefaultAKSTarget != "" {
+			resourceID, ok := cfg.AKSTargets[cfg.DefaultAKSTarget]
+			if !ok {
+				return nil, fmt.Errorf("default AKS target %q is not configured", cfg.DefaultAKSTarget)
+			}
+			resolved["aks_resource_id"] = resourceID
+			return resolved, nil
+		}
+		if cfg.DefaultAKSResourceID != "" {
+			resolved["aks_resource_id"] = cfg.DefaultAKSResourceID
+			return resolved, nil
+		}
+		return nil, fmt.Errorf("aks_target is required; configured aliases: %s",
+			strings.Join(SortedAKSTargetAliases(cfg.AKSTargets), ", "))
+	}
+
+	if requestedID != "" {
+		return resolved, nil
+	}
+	if cfg.DefaultAKSResourceID != "" {
+		resolved["aks_resource_id"] = cfg.DefaultAKSResourceID
+	}
+	return resolved, nil
+}
+
+// isAllowlistedAKSResourceID reports whether an explicitly supplied resource ID
+// matches a configured target. Azure resource IDs are case-insensitive.
+func (cfg *ConfigData) isAllowlistedAKSResourceID(resourceID string) bool {
+	for _, allowed := range cfg.AKSTargets {
+		if strings.EqualFold(strings.TrimSpace(allowed), resourceID) {
+			return true
+		}
+	}
+	return false
 }
 
 // splitAndTrim splits raw on commas, trims whitespace, and drops empty entries.
