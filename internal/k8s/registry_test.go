@@ -6,7 +6,7 @@ import (
 )
 
 func TestCreateCallKubectlTool_ResourceIDRequired_WhenNoDefault(t *testing.T) {
-	tool := createCallKubectlTool("readonly", "")
+	tool := createCallKubectlTool("readonly", "", nil, "")
 
 	schemaBytes, err := json.Marshal(tool.InputSchema)
 	if err != nil {
@@ -33,7 +33,7 @@ func TestCreateCallKubectlTool_ResourceIDRequired_WhenNoDefault(t *testing.T) {
 }
 
 func TestCreateCallKubectlTool_ResourceIDOptional_WhenDefaultSet(t *testing.T) {
-	tool := createCallKubectlTool("readonly", "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ContainerService/managedClusters/cluster")
+	tool := createCallKubectlTool("readonly", "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ContainerService/managedClusters/cluster", nil, "")
 
 	schemaBytes, err := json.Marshal(tool.InputSchema)
 	if err != nil {
@@ -65,7 +65,7 @@ func TestCreateCallKubectlTool_CommandAlwaysRequired(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tool := createCallKubectlTool("readonly", tt.defaultResourceID)
+			tool := createCallKubectlTool("readonly", tt.defaultResourceID, nil, "")
 
 			schemaBytes, _ := json.Marshal(tool.InputSchema)
 			var schema struct {
@@ -89,7 +89,7 @@ func TestCreateCallKubectlTool_CommandAlwaysRequired(t *testing.T) {
 
 func TestCreateCallKubectlTool_DescriptionContainsDefault(t *testing.T) {
 	defaultID := "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ContainerService/managedClusters/mycluster"
-	tool := createCallKubectlTool("readonly", defaultID)
+	tool := createCallKubectlTool("readonly", defaultID, nil, "")
 
 	schemaBytes, _ := json.Marshal(tool.InputSchema)
 	var schema struct {
@@ -109,14 +109,14 @@ func TestCreateCallKubectlTool_DescriptionContainsDefault(t *testing.T) {
 }
 
 func TestCreateCallKubectlTool_Name(t *testing.T) {
-	tool := createCallKubectlTool("readonly", "")
+	tool := createCallKubectlTool("readonly", "", nil, "")
 	if tool.Name != "call_kubectl" {
 		t.Errorf("expected tool name call_kubectl, got %q", tool.Name)
 	}
 }
 
 func TestRegisterKubectlTools_TokenAuthOnly(t *testing.T) {
-	tools := RegisterKubectlTools("readonly", true, true, "")
+	tools := RegisterKubectlTools("readonly", true, true, "", nil, "")
 	if len(tools) != 1 {
 		t.Fatalf("expected 1 tool in tokenAuthOnly mode, got %d", len(tools))
 	}
@@ -127,7 +127,7 @@ func TestRegisterKubectlTools_TokenAuthOnly(t *testing.T) {
 
 func TestRegisterKubectlTools_TokenAuthOnly_WithDefault(t *testing.T) {
 	defaultID := "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ContainerService/managedClusters/cluster"
-	tools := RegisterKubectlTools("readonly", true, true, defaultID)
+	tools := RegisterKubectlTools("readonly", true, true, defaultID, nil, "")
 
 	if len(tools) != 1 {
 		t.Fatalf("expected 1 tool, got %d", len(tools))
@@ -142,6 +142,24 @@ func TestRegisterKubectlTools_TokenAuthOnly_WithDefault(t *testing.T) {
 	for _, r := range schema.Required {
 		if r == "aks_resource_id" {
 			t.Error("aks_resource_id should be optional when default resource ID is provided")
+		}
+	}
+}
+
+func TestCreateCallKubectlTool_AdvertisesConfiguredTargetAliases(t *testing.T) {
+	tool := createCallKubectlTool("readonly", "", map[string]string{"prod": "id", "test": "id"}, "prod")
+	schemaBytes, _ := json.Marshal(tool.InputSchema)
+	var schema struct {
+		Required   []string               `json:"required"`
+		Properties map[string]interface{} `json:"properties"`
+	}
+	_ = json.Unmarshal(schemaBytes, &schema)
+	if _, ok := schema.Properties["aks_target"]; !ok {
+		t.Fatal("aks_target property not found in schema")
+	}
+	for _, required := range schema.Required {
+		if required == "aks_resource_id" {
+			t.Fatal("aks_resource_id must be optional when aliases are configured")
 		}
 	}
 }

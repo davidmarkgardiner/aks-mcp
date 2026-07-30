@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/Azure/mcp-kubernetes/pkg/kubectl"
@@ -14,7 +15,7 @@ const (
 	AccessLevelReadWrite = "readwrite"
 )
 
-func createCallKubectlTool(accessLevel string, defaultAKSResourceID string) mcp.Tool {
+func createCallKubectlTool(accessLevel string, defaultAKSResourceID string, aksTargets map[string]string, defaultAKSTarget string) mcp.Tool {
 	var description string
 
 	readCommands := strings.Join(security.KubectlReadOperations, ", ")
@@ -71,13 +72,24 @@ Examples:
 	}
 
 	resourceIDDesc := "Full Azure Resource ID of the AKS cluster (e.g., /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.ContainerService/managedClusters/{clusterName})"
-	if defaultAKSResourceID != "" {
+	if defaultAKSTarget != "" {
+		resourceIDDesc = fmt.Sprintf("Full Azure Resource ID of the AKS cluster. Defaults to configured target alias %q if neither target nor resource ID is provided.", defaultAKSTarget)
+	} else if defaultAKSResourceID != "" {
 		resourceIDDesc = fmt.Sprintf("Full Azure Resource ID of the AKS cluster. Defaults to %s if not provided.", defaultAKSResourceID)
 	}
 
 	resourceIDOpts := []mcp.PropertyOption{mcp.Description(resourceIDDesc)}
-	if defaultAKSResourceID == "" {
+	if defaultAKSResourceID == "" && len(aksTargets) == 0 {
 		resourceIDOpts = append(resourceIDOpts, mcp.Required())
+	}
+	targetOpts := []mcp.PropertyOption{mcp.Description("Configured server-side AKS target alias. Aliases are allowlisted and resolve to a resource ID before Azure is called.")}
+	if len(aksTargets) > 0 {
+		aliases := make([]string, 0, len(aksTargets))
+		for alias := range aksTargets {
+			aliases = append(aliases, alias)
+		}
+		sort.Strings(aliases)
+		targetOpts = append(targetOpts, mcp.Enum(aliases...))
 	}
 
 	return mcp.NewTool("call_kubectl",
@@ -87,13 +99,14 @@ Examples:
 			mcp.Description("Full kubectl command to execute (e.g., 'kubectl get pods -n default', 'kubectl describe deployment myapp', 'kubectl logs nginx-pod -f')"),
 		),
 		mcp.WithString("aks_resource_id", resourceIDOpts...),
+		mcp.WithString("aks_target", targetOpts...),
 	)
 }
 
-func RegisterKubectlTools(accessLevel string, useUnifiedTool bool, tokenAuthOnly bool, defaultAKSResourceID string) []mcp.Tool {
+func RegisterKubectlTools(accessLevel string, useUnifiedTool bool, tokenAuthOnly bool, defaultAKSResourceID string, aksTargets map[string]string, defaultAKSTarget string) []mcp.Tool {
 	if tokenAuthOnly {
 		return []mcp.Tool{
-			createCallKubectlTool(accessLevel, defaultAKSResourceID),
+			createCallKubectlTool(accessLevel, defaultAKSResourceID, aksTargets, defaultAKSTarget),
 		}
 	}
 

@@ -97,8 +97,12 @@ func (a *executorAdapter) Execute(ctx context.Context, params map[string]interfa
 	}
 
 	if a.tokenAuthOnly {
+		resolvedParams, err := cfg.ResolveAKSResourceID(params)
+		if err != nil {
+			return "", err
+		}
 		k8sCfg := ConvertConfig(cfg)
-		return a.runCommandExecutor.Execute(ctx, params, k8sCfg)
+		return a.runCommandExecutor.Execute(ctx, resolvedParams, k8sCfg)
 	}
 	k8sCfg := ConvertConfig(cfg)
 	return a.k8sExecutor.Execute(ctx, params, k8sCfg)
