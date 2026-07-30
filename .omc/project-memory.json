@@ -1,0 +1,188 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1785449751009,
+  "projectRoot": "/Users/davidgardiner/.no-mistakes/worktrees/e3c6c6bf7ae7/01KYTHJ5JBK6Q547BPKTB577BM",
+  "techStack": {
+    "languages": [
+      {
+        "name": "Go",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "go.mod"
+        ]
+      },
+      {
+        "name": "C/C++",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "Makefile"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": "go",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "make build",
+    "testCommand": "go vet ./internal/config/... ./internal/k8s/... && go test ./internal/config/... ./internal/k8s/... 2>&1 | tail -30",
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs",
+      "test"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "chart": {
+      "path": "chart",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1785449750985,
+      "keyFiles": [
+        "Chart.yaml",
+        "README.md",
+        "values-mcp-inspector-azure-approuting.yaml",
+        "values-mcp-inspector.yaml",
+        "values.yaml"
+      ]
+    },
+    "cmd": {
+      "path": "cmd",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1785449750997,
+      "keyFiles": []
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 6,
+      "lastAccessed": 1785449751000,
+      "keyFiles": [
+        "azure-advisor-usage.md",
+        "helm-chart.md",
+        "helm-workload-identity.md",
+        "inspektor-gadget-usage.md",
+        "logging.md"
+      ]
+    },
+    "internal": {
+      "path": "internal",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1785449751001,
+      "keyFiles": []
+    },
+    "prompts": {
+      "path": "prompts",
+      "purpose": null,
+      "fileCount": 16,
+      "lastAccessed": 1785449751001,
+      "keyFiles": [
+        "README.md",
+        "aks-control-plane.md",
+        "aks-mcp-tool-consolidation.md",
+        "aks-private-endpoint.md",
+        "applens-detectors.md"
+      ]
+    },
+    "test": {
+      "path": "test",
+      "purpose": "Test files",
+      "fileCount": 0,
+      "lastAccessed": 1785449751001,
+      "keyFiles": []
+    },
+    "chart/scripts": {
+      "path": "chart/scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 1,
+      "lastAccessed": 1785449751004,
+      "keyFiles": [
+        "deploy.sh"
+      ]
+    },
+    "internal/components": {
+      "path": "internal/components",
+      "purpose": "UI components",
+      "fileCount": 2,
+      "lastAccessed": 1785449751008,
+      "keyFiles": [
+        "components.go",
+        "components_test.go"
+      ]
+    },
+    "internal/config": {
+      "path": "internal/config",
+      "purpose": "Configuration files",
+      "fileCount": 4,
+      "lastAccessed": 1785449751008,
+      "keyFiles": [
+        "aks_targets_test.go",
+        "config.go",
+        "config_test.go"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "internal/config/config.go",
+      "accessCount": 5,
+      "lastAccessed": 1785449995900,
+      "type": "file"
+    },
+    {
+      "path": "internal/k8s/registry.go",
+      "accessCount": 3,
+      "lastAccessed": 1785450008161,
+      "type": "file"
+    },
+    {
+      "path": "internal/config/aks_targets_test.go",
+      "accessCount": 3,
+      "lastAccessed": 1785450023165,
+      "type": "file"
+    },
+    {
+      "path": "internal/k8s/registry_test.go",
+      "accessCount": 2,
+      "lastAccessed": 1785450028026,
+      "type": "file"
+    },
+    {
+      "path": "internal/k8s/runcommand_executor.go",
+      "accessCount": 1,
+      "lastAccessed": 1785449797256,
+      "type": "file"
+    },
+    {
+      "path": "internal/k8s/adapter.go",
+      "accessCount": 1,
+      "lastAccessed": 1785449961785,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 1,
+      "lastAccessed": 1785450036357,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

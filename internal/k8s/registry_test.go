@@ -163,3 +163,25 @@ func TestCreateCallKubectlTool_AdvertisesConfiguredTargetAliases(t *testing.T) {
 		}
 	}
 }
+
+func TestCreateCallKubectlTool_TargetRequired_WhenAliasesHaveNoDefault(t *testing.T) {
+	tool := createCallKubectlTool("readonly", "", map[string]string{"prod": "id", "test": "id"}, "")
+	schemaBytes, _ := json.Marshal(tool.InputSchema)
+	var schema struct {
+		Required []string `json:"required"`
+	}
+	_ = json.Unmarshal(schemaBytes, &schema)
+
+	found := false
+	for _, required := range schema.Required {
+		if required == "aks_target" {
+			found = true
+		}
+		if required == "aks_resource_id" {
+			t.Fatal("aks_resource_id must not be required when aliases are configured")
+		}
+	}
+	if !found {
+		t.Errorf("expected aks_target to be required when aliases are configured without a default, required fields: %v", schema.Required)
+	}
+}

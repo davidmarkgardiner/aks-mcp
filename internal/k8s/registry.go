@@ -2,9 +2,9 @@ package k8s
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
+	"github.com/Azure/aks-mcp/internal/config"
 	"github.com/Azure/mcp-kubernetes/pkg/kubectl"
 	"github.com/Azure/mcp-kubernetes/pkg/security"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -78,18 +78,20 @@ Examples:
 		resourceIDDesc = fmt.Sprintf("Full Azure Resource ID of the AKS cluster. Defaults to %s if not provided.", defaultAKSResourceID)
 	}
 
+	if len(aksTargets) > 0 {
+		resourceIDDesc += " When AKS targets are configured, this must exactly match one of the configured targets; prefer aks_target."
+	}
+
 	resourceIDOpts := []mcp.PropertyOption{mcp.Description(resourceIDDesc)}
 	if defaultAKSResourceID == "" && len(aksTargets) == 0 {
 		resourceIDOpts = append(resourceIDOpts, mcp.Required())
 	}
 	targetOpts := []mcp.PropertyOption{mcp.Description("Configured server-side AKS target alias. Aliases are allowlisted and resolve to a resource ID before Azure is called.")}
 	if len(aksTargets) > 0 {
-		aliases := make([]string, 0, len(aksTargets))
-		for alias := range aksTargets {
-			aliases = append(aliases, alias)
+		targetOpts = append(targetOpts, mcp.Enum(config.SortedAKSTargetAliases(aksTargets)...))
+		if defaultAKSTarget == "" && defaultAKSResourceID == "" {
+			targetOpts = append(targetOpts, mcp.Required())
 		}
-		sort.Strings(aliases)
-		targetOpts = append(targetOpts, mcp.Enum(aliases...))
 	}
 
 	return mcp.NewTool("call_kubectl",
