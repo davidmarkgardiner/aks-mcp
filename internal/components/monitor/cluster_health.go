@@ -60,13 +60,19 @@ type ClusterHealthResult struct {
 
 // RegisterClusterHealth registers the new typed, read-only triage tool. The
 // legacy aks_monitoring tool remains unchanged for backwards compatibility.
-func RegisterClusterHealth() mcp.Tool {
-	return mcp.NewTool("aks_cluster_health",
+func RegisterClusterHealth(enableTasks bool) mcp.Tool {
+	options := []mcp.ToolOption{
 		mcp.WithDescription("Return a bounded, structured, read-only Azure Resource Health snapshot for one AKS cluster."),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithInputSchema[ClusterHealthRequest](),
 		mcp.WithOutputSchema[ClusterHealthResult](),
-	)
+	}
+	if enableTasks {
+		// The same read-only handler may be executed as a durable MCP Task only
+		// when the service has a configured persistent task store.
+		options = append(options, mcp.WithTaskSupport(mcp.TaskSupportOptional))
+	}
+	return mcp.NewTool("aks_cluster_health", options...)
 }
 
 // GetClusterHealthHandler adapts the existing read-only Resource Health query
@@ -88,6 +94,24 @@ func GetClusterHealthHandler(cfg *config.ConfigData) func(context.Context, mcp.C
 			return ClusterHealthResult{}, err
 		}
 		return newClusterHealthResult(request, raw, time.Now().UTC())
+	})
+}
+
+// ClusterHealthTaskScope is the minimal durable audit scope for an async
+// cluster-health request. It validates the same identifiers as the handler
+// and deliberately omits time windows, headers and every credential source.
+func ClusterHealthTaskScope(request mcp.CallToolRequest) (json.RawMessage, error) {
+	var input ClusterHealthRequest
+	if err := request.BindArguments(&input); err != nil {
+		return nil, fmt.Errorf("invalid cluster-health task scope")
+	}
+	if err := validateClusterHealthRequest(input); err != nil {
+		return nil, err
+	}
+	return json.Marshal(ClusterHealthScope{
+		SubscriptionID: input.SubscriptionID,
+		ResourceGroup:  input.ResourceGroup,
+		ClusterName:    input.ClusterName,
 	})
 }
 

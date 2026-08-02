@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 func TestNewClusterHealthResult_ProjectsAndBoundsEvents(t *testing.T) {
@@ -55,11 +57,40 @@ func TestValidateClusterHealthRequest(t *testing.T) {
 }
 
 func TestRegisterClusterHealth_TypedReadOnlyContract(t *testing.T) {
-	tool := RegisterClusterHealth()
+	tool := RegisterClusterHealth(true)
 	if tool.Name != "aks_cluster_health" || tool.Annotations.ReadOnlyHint == nil || !*tool.Annotations.ReadOnlyHint {
 		t.Fatalf("tool is not declared as typed read-only triage: %#v", tool)
 	}
 	if tool.OutputSchema.Type == "" || len(tool.OutputSchema.Properties) == 0 {
 		t.Fatalf("tool has no generated structured output schema: %#v", tool.OutputSchema)
+	}
+	if tool.Execution == nil || tool.Execution.TaskSupport != mcp.TaskSupportOptional {
+		t.Fatalf("cluster-health must expose optional MCP task support: %#v", tool.Execution)
+	}
+}
+
+func TestRegisterClusterHealth_DoesNotAdvertiseVolatileTasks(t *testing.T) {
+	tool := RegisterClusterHealth(false)
+	if tool.Execution != nil {
+		t.Fatalf("task support must be absent without durable storage: %#v", tool.Execution)
+	}
+}
+
+func TestClusterHealthTaskScopePersistsOnlyValidatedClusterIdentity(t *testing.T) {
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]any{
+		"subscription_id": "sub-1",
+		"resource_group":  "rg-1",
+		"cluster_name":    "cluster-1",
+		"start_time":      "2026-08-02T10:00:00Z",
+		"end_time":        "2026-08-02T11:00:00Z",
+	}
+	scope, err := ClusterHealthTaskScope(request)
+	if err != nil || string(scope) != `{"subscription_id":"sub-1","resource_group":"rg-1","cluster_name":"cluster-1"}` {
+		t.Fatalf("unexpected safe task scope: %s err=%v", scope, err)
+	}
+	request.Params.Arguments = map[string]any{"subscription_id": "sub-1", "resource_group": "rg-1", "cluster_name": "bad; scope", "start_time": "2026-08-02T10:00:00Z"}
+	if _, err := ClusterHealthTaskScope(request); err == nil {
+		t.Fatal("unsafe scope was accepted")
 	}
 }

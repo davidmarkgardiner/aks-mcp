@@ -2,6 +2,10 @@ module github.com/Azure/aks-mcp
 
 go 1.25.5
 
+// Forked until durable MCP Task persistence is accepted upstream. The fork
+// keeps the upstream module path and adds a TaskStore hook used by AKS-MCP.
+replace github.com/mark3labs/mcp-go => github.com/davidmarkgardiner/mcp-go v0.57.1-0.20260802100025-638683aca3fb
+
 require (
 	github.com/Azure/azure-api-mcp v0.0.7
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.0
