@@ -679,6 +679,21 @@ func (s *Service) registerMonitoringComponent() {
 	logger.Debugf("Registering monitoring tool: aks_monitoring")
 	monitoringTool := monitor.RegisterAksMonitoring()
 	s.mcpServer.AddTool(monitoringTool, tools.CreateResourceHandler(monitor.GetAksMonitoringHandler(s.azClient, s.cfg), s.cfg))
+
+	logger.Debugf("Registering structured read-only triage tool: aks_cluster_health")
+	clusterHealthTool := monitor.RegisterClusterHealth()
+	s.mcpServer.AddTool(clusterHealthTool, monitor.GetClusterHealthHandler(s.cfg))
+
+	// These tools expose the remaining typed triage.v1 signals.  Their handlers
+	// own fixed read-only Kubernetes queries; callers cannot supply a command.
+	logger.Debugf("Registering structured read-only triage tool: aks_node_pressure")
+	s.mcpServer.AddTool(monitor.RegisterNodePressure(), monitor.GetNodePressureHandler(s.cfg))
+	logger.Debugf("Registering structured read-only triage tool: aks_workload_failures")
+	s.mcpServer.AddTool(monitor.RegisterWorkloadFailures(), monitor.GetWorkloadFailuresHandler(s.cfg))
+	logger.Debugf("Registering structured read-only triage tool: aks_policy_posture")
+	s.mcpServer.AddTool(monitor.RegisterPolicyPosture(), monitor.GetPolicyPostureHandler(s.cfg))
+	logger.Debugf("Registering structured read-only triage tool: aks_deployment_history")
+	s.mcpServer.AddTool(monitor.RegisterDeploymentHistory(), monitor.GetDeploymentHistoryHandler(s.cfg))
 }
 
 // registerFleetComponent registers Azure fleet management tools

@@ -1,0 +1,20 @@
+{
+  "schema_version": "triage.v1",
+  "signal": "kubernetes_workload_failure",
+  "scope": {
+    "cluster": "/subscriptions/example/resourceGroups/platform/providers/Microsoft.ContainerService/managedClusters/aks-prod",
+    "namespace": "checkout",
+    "namespace_scope": "single-namespace"
+  },
+  "observed_at": "2026-08-02T10:00:00Z",
+  "findings": [
+    {
+      "namespace": "checkout",
+      "name": "payments-6f9b5c7d8d-xk2m9",
+      "reason": "CrashLoopBackOff",
+      "severity": "warning",
+      "observed_at": "2026-08-02T10:00:00Z"
+    }
+  ],
+  "truncated": false
+}
