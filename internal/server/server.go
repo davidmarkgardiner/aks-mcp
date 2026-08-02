@@ -141,6 +141,10 @@ func (s *Service) initializeInfrastructure() error {
 		mcpOptions = append(mcpOptions,
 			server.WithTaskCapabilities(true, true, true),
 			server.WithMaxConcurrentTasks(4),
+			// A task cannot become immortal: absent TTL receives 15 minutes;
+			// callers cannot retain cluster evidence beyond one hour.
+			server.WithTaskTTLBounds(15*60*1000, 60*60*1000),
+			server.WithTaskScopeExtractor(monitor.ClusterHealthTaskScope),
 			server.WithTaskStore(server.NewFileTaskStore(s.cfg.TaskStoreDir)),
 		)
 		logger.Infof("Durable MCP Tasks enabled with task store directory %q", s.cfg.TaskStoreDir)

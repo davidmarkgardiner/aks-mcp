@@ -21,8 +21,11 @@ an existing claim. The bundled file store is for one replica; use a shared
 
 ## Behaviour and safety
 
-- Task records contain the MCP task state, scope/session identifier, bounded
-  result, and expiry metadata. They never contain request headers or tokens.
+- Task records contain the MCP task state, owner session, a validated minimal
+  cluster scope, bounded result, and expiry metadata. They never contain
+  request headers, raw arguments or tokens.
+- AKS-MCP supplies a 15-minute default TTL and rejects zero, negative or
+  over-one-hour client TTLs before allocating a task handle.
 - Completed results remain available after a process restart until their TTL
   expires.
 - A task interrupted by a restart is marked `failed` with an explicit restart

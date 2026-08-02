@@ -97,6 +97,24 @@ func GetClusterHealthHandler(cfg *config.ConfigData) func(context.Context, mcp.C
 	})
 }
 
+// ClusterHealthTaskScope is the minimal durable audit scope for an async
+// cluster-health request. It validates the same identifiers as the handler
+// and deliberately omits time windows, headers and every credential source.
+func ClusterHealthTaskScope(request mcp.CallToolRequest) (json.RawMessage, error) {
+	var input ClusterHealthRequest
+	if err := request.BindArguments(&input); err != nil {
+		return nil, fmt.Errorf("invalid cluster-health task scope")
+	}
+	if err := validateClusterHealthRequest(input); err != nil {
+		return nil, err
+	}
+	return json.Marshal(ClusterHealthScope{
+		SubscriptionID: input.SubscriptionID,
+		ResourceGroup:  input.ResourceGroup,
+		ClusterName:    input.ClusterName,
+	})
+}
+
 func validateClusterHealthRequest(request ClusterHealthRequest) error {
 	for name, value := range map[string]string{
 		"subscription_id": request.SubscriptionID,
