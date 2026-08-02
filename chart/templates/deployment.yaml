@@ -113,6 +113,10 @@ spec:
             - "--task-store-dir"
             - {{ .Values.taskStore.mountPath | quote }}
             {{- end }}
+            {{- if .Values.remediationStore.enabled }}
+            - "--remediation-store-dir"
+            - {{ .Values.remediationStore.mountPath | quote }}
+            {{- end }}
             {{- if .Values.security.allowedHosts }}
             - "--allowed-host"
             - {{ join "," .Values.security.allowedHosts | quote }}
@@ -166,6 +170,10 @@ spec:
             - name: task-store
               mountPath: {{ .Values.taskStore.mountPath | quote }}
             {{- end }}
+            {{- if .Values.remediationStore.enabled }}
+            - name: remediation-store
+              mountPath: {{ .Values.remediationStore.mountPath | quote }}
+            {{- end }}
             {{- if .Values.kubeconfig.enabled }}
             - name: kubeconfig
               mountPath: /home/mcp/.kube
@@ -189,6 +197,11 @@ spec:
         - name: task-store
           persistentVolumeClaim:
             claimName: {{ required "taskStore.existingClaim is required when taskStore.enabled=true" .Values.taskStore.existingClaim }}
+        {{- end }}
+        {{- if .Values.remediationStore.enabled }}
+        - name: remediation-store
+          persistentVolumeClaim:
+            claimName: {{ required "remediationStore.existingClaim is required when remediationStore.enabled=true" .Values.remediationStore.existingClaim }}
         {{- end }}
         {{- if .Values.kubeconfig.enabled }}
         - name: kubeconfig

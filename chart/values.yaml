@@ -129,6 +129,15 @@ taskStore:
   existingClaim: ""
   mountPath: "/var/lib/aks-mcp/tasks"
 
+# Immutable remediation plans and external approval records. This is separate
+# from MCP Task state so a triage server cannot accidentally turn a task PVC
+# into a mutation authority. Enable only for the explicitly requested
+# remediation component and use the same PVC in the restricted apply workflow.
+remediationStore:
+  enabled: false
+  existingClaim: ""
+  mountPath: "/var/lib/aks-mcp/remediation"
+
 # Ingress configuration
 ingress:
   # Enable ingress for the application

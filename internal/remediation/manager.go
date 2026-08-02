@@ -59,10 +59,34 @@ type Manager struct {
 	applied   map[string]time.Time
 	audit     []AuditEvent
 	now       func() time.Time
+	store     Store
 }
 
 func NewManager() *Manager {
 	return &Manager{plans: map[string]Plan{}, approvals: map[string]Approval{}, applied: map[string]time.Time{}, now: time.Now}
+}
+
+// NewManagerWithStore restores the shared durable plan/approval record before
+// exposing any remediation operation. A corrupt or unreadable record fails
+// closed rather than allowing an unapproved replacement state.
+func NewManagerWithStore(store Store) (*Manager, error) {
+	if store == nil {
+		return nil, fmt.Errorf("remediation store is required")
+	}
+	state, err := store.Load()
+	if err != nil {
+		return nil, err
+	}
+	state.ensureMaps()
+	manager := NewManager()
+	manager.store = store
+	manager.plans = state.Plans
+	manager.approvals = state.Approvals
+	for key, appliedAt := range state.Applied {
+		manager.applied[key] = time.UnixMilli(appliedAt)
+	}
+	manager.audit = state.Audit
+	return manager, nil
 }
 
 func (m *Manager) Create(plan Plan) (Plan, error) {
@@ -80,6 +104,11 @@ func (m *Manager) Create(plan Plan) (Plan, error) {
 	plan.Digest = digest(plan)
 	m.plans[plan.ID] = plan
 	m.audit = append(m.audit, AuditEvent{At: m.now(), Type: "plan_created", PlanID: plan.ID, Detail: plan.Digest})
+	if err := m.persistLocked(); err != nil {
+		delete(m.plans, plan.ID)
+		m.audit = m.audit[:len(m.audit)-1]
+		return Plan{}, err
+	}
 	return plan, nil
 }
 
@@ -95,6 +124,11 @@ func (m *Manager) Approve(planID, digest, approver string, expiresAt time.Time) 
 	}
 	m.approvals[planID] = Approval{PlanID: planID, Digest: digest, ApprovedBy: approver, ExpiresAt: expiresAt}
 	m.audit = append(m.audit, AuditEvent{At: m.now(), Type: "plan_approved", PlanID: planID, Detail: approver})
+	if err := m.persistLocked(); err != nil {
+		delete(m.approvals, planID)
+		m.audit = m.audit[:len(m.audit)-1]
+		return err
+	}
 	return nil
 }
 
@@ -110,16 +144,42 @@ func (m *Manager) Apply(ctx context.Context, planID, digest, identity string, ap
 		m.mu.Unlock()
 		return fmt.Errorf("remediation plan already applied")
 	}
+	// Reserve the idempotency key before releasing the lock or invoking kubectl.
+	// A crash now fails closed rather than permitting two workers to apply the
+	// same immutable plan concurrently.
+	m.applied[plan.IdempotencyKey] = m.now()
 	m.audit = append(m.audit, AuditEvent{At: m.now(), Type: "apply_attempt", PlanID: planID, Detail: identity})
+	if err := m.persistLocked(); err != nil {
+		delete(m.applied, plan.IdempotencyKey)
+		m.audit = m.audit[:len(m.audit)-1]
+		m.mu.Unlock()
+		return err
+	}
 	m.mu.Unlock()
 	if err := applier.Apply(ctx, plan); err != nil {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		m.audit = append(m.audit, AuditEvent{At: m.now(), Type: "apply_failed", PlanID: planID, Detail: identity})
+		if persistErr := m.persistLocked(); persistErr != nil {
+			return persistErr
+		}
 		return err
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.applied[plan.IdempotencyKey] = m.now()
 	m.audit = append(m.audit, AuditEvent{At: m.now(), Type: "applied", PlanID: planID, Detail: identity})
-	return nil
+	return m.persistLocked()
+}
+
+func (m *Manager) persistLocked() error {
+	if m.store == nil {
+		return nil
+	}
+	applied := make(map[string]int64, len(m.applied))
+	for key, value := range m.applied {
+		applied[key] = value.UnixMilli()
+	}
+	return m.store.Save(State{Plans: m.plans, Approvals: m.approvals, Applied: applied, Audit: m.audit})
 }
 
 func (m *Manager) Audit() []AuditEvent {

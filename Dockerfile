@@ -30,6 +30,10 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
               -X github.com/Azure/aks-mcp/internal/version.BuildMetadata=${BUILD_DATE}" \
     -o aks-mcp ./cmd/aks-mcp
 
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -trimpath \
+    -o aks-mcp-remediation-worker ./cmd/aks-mcp-remediation-worker
+
 # Runtime stage
 FROM alpine:3.23
 ARG TARGETARCH
@@ -89,6 +93,7 @@ RUN addgroup -S mcp && \
 
 # Copy binary from builder
 COPY --from=builder /app/aks-mcp /usr/local/bin/aks-mcp
+COPY --from=builder /app/aks-mcp-remediation-worker /usr/local/bin/aks-mcp-remediation-worker
 
 # Set working directory
 WORKDIR /home/mcp

@@ -82,23 +82,35 @@ func (s *Service) Initialize() error {
 
 	// Phase 2: Register all component tools
 	s.registerAllComponents()
-	s.registerRemediationTools()
+	if err := s.registerRemediationTools(); err != nil {
+		return err
+	}
 
 	logger.Infof("AKS MCP service initialization completed successfully")
 	return nil
 }
 
-func (s *Service) registerRemediationTools() {
+func (s *Service) registerRemediationTools() error {
 	// These tools are not part of the normal triage surface. An operator must
 	// explicitly enable the remediation component, and apply remains outside
 	// this process behind an Argo gate and restricted service account.
 	if !hasExplicitComponent("remediation", s.cfg.EnabledComponents) {
-		return
+		return nil
 	}
-	s.remediation = remediation.NewManager()
+	if s.cfg.RemediationStoreDir == "" {
+		return fmt.Errorf("remediation component requires --remediation-store-dir backed by persistent storage")
+	}
+	manager, err := remediation.NewManagerWithStore(remediation.NewFileStore(s.cfg.RemediationStoreDir))
+	if err != nil {
+		return fmt.Errorf("load durable remediation record: %w", err)
+	}
+	s.remediation = manager
 	s.mcpServer.AddTool(remediation.PlanTool(), remediation.PlanHandler(s.remediation))
-	s.mcpServer.AddTool(remediation.ApproveTool(), remediation.ApprovalHandler(s.remediation))
 	s.mcpServer.AddTool(remediation.VerifyTool(), remediation.VerifyHandler(s.remediation))
+	// Approval and apply are intentionally absent from the public MCP service.
+	// A separately deployed, restricted-identity workflow writes approvals and
+	// calls Apply after validating the durable record.
+	return nil
 }
 
 func hasExplicitComponent(name string, enabled []string) bool {
