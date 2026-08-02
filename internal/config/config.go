@@ -66,6 +66,9 @@ type ConfigData struct {
 	// OTLP endpoint for OpenTelemetry traces
 	OTLPEndpoint string
 
+	// EnableTriageResources opts in to bounded, read-only AKS triage resources.
+	EnableTriageResources bool
+
 	// Telemetry service
 	TelemetryService *telemetry.Service
 
@@ -103,20 +106,21 @@ type ConfigData struct {
 // NewConfig creates and returns a new configuration instance
 func NewConfig() *ConfigData {
 	return &ConfigData{
-		Timeout:           60,
-		CacheTimeout:      1 * time.Minute,
-		SecurityConfig:    security.NewSecurityConfig(),
-		OAuthConfig:       auth.NewDefaultOAuthConfig(),
-		Transport:         "stdio",
-		Port:              8000,
-		AccessLevel:       "readonly",
-		EnabledComponents: []string{},
-		AllowNamespaces:   "",
-		LogLevel:          "info",
-		UseLegacyTools:    os.Getenv("USE_LEGACY_TOOLS") == "true",
-		TokenAuthOnly:     false,
-		AllowedHosts:      []string{},
-		AllowedOrigins:    []string{},
+		Timeout:               60,
+		CacheTimeout:          1 * time.Minute,
+		SecurityConfig:        security.NewSecurityConfig(),
+		OAuthConfig:           auth.NewDefaultOAuthConfig(),
+		Transport:             "stdio",
+		Port:                  8000,
+		AccessLevel:           "readonly",
+		EnabledComponents:     []string{},
+		AllowNamespaces:       "",
+		LogLevel:              "info",
+		UseLegacyTools:        os.Getenv("USE_LEGACY_TOOLS") == "true",
+		TokenAuthOnly:         false,
+		EnableTriageResources: os.Getenv("ENABLE_TRIAGE_RESOURCES") == "true",
+		AllowedHosts:          []string{},
+		AllowedOrigins:        []string{},
 	}
 }
 
@@ -127,6 +131,7 @@ func (cfg *ConfigData) ParseFlags() {
 	flag.StringVar(&cfg.Host, "host", "127.0.0.1", "Host to listen for the server (only used with transport sse or streamable-http)")
 	flag.IntVar(&cfg.Port, "port", 8000, "Port to listen for the server (only used with transport sse or streamable-http)")
 	flag.IntVar(&cfg.Timeout, "timeout", 600, "Timeout for command execution in seconds, default is 600s")
+	flag.BoolVar(&cfg.EnableTriageResources, "enable-triage-resources", cfg.EnableTriageResources, "Enable bounded read-only AKS triage MCP resources")
 
 	// Security settings
 	flag.StringVar(&cfg.AccessLevel, "access-level", "readonly", "Access level (readonly, readwrite, admin)")
