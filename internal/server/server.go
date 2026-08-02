@@ -29,6 +29,7 @@ import (
 	"github.com/Azure/aks-mcp/internal/logger"
 	"github.com/Azure/aks-mcp/internal/prompts"
 	"github.com/Azure/aks-mcp/internal/remediation"
+	"github.com/Azure/aks-mcp/internal/resources"
 	"github.com/Azure/aks-mcp/internal/server/httpsecurity"
 	"github.com/Azure/aks-mcp/internal/tools"
 	"github.com/Azure/aks-mcp/internal/version"
@@ -82,6 +83,9 @@ func (s *Service) Initialize() error {
 
 	// Phase 2: Register all component tools
 	s.registerAllComponents()
+	if s.cfg.EnableTriageResources {
+		resources.RegisterTriageResources(s.mcpServer, s.cfg)
+	}
 	if err := s.registerRemediationTools(); err != nil {
 		return err
 	}
@@ -166,7 +170,6 @@ func (s *Service) initializeInfrastructure() error {
 	// supplied durable storage; advertising resumable task handles on a volatile
 	// filesystem would be misleading after a pod replacement.
 	mcpOptions := []server.ServerOption{
-		server.WithResourceCapabilities(true, true),
 		server.WithPromptCapabilities(true),
 		server.WithLogging(),
 		server.WithRecovery(),

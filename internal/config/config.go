@@ -72,7 +72,8 @@ type ConfigData struct {
 	TaskStoreDir string
 	// RemediationStoreDir is a PVC-backed shared record for immutable plans and
 	// approvals. An empty value fail-closes the optional remediation component.
-	RemediationStoreDir string
+	RemediationStoreDir   string
+	EnableTriageResources bool
 
 	// Telemetry service
 	TelemetryService *telemetry.Service
@@ -111,22 +112,23 @@ type ConfigData struct {
 // NewConfig creates and returns a new configuration instance
 func NewConfig() *ConfigData {
 	return &ConfigData{
-		Timeout:             60,
-		CacheTimeout:        1 * time.Minute,
-		SecurityConfig:      security.NewSecurityConfig(),
-		OAuthConfig:         auth.NewDefaultOAuthConfig(),
-		Transport:           "stdio",
-		Port:                8000,
-		AccessLevel:         "readonly",
-		EnabledComponents:   []string{},
-		AllowNamespaces:     "",
-		LogLevel:            "info",
-		UseLegacyTools:      os.Getenv("USE_LEGACY_TOOLS") == "true",
-		TokenAuthOnly:       false,
-		TaskStoreDir:        os.Getenv("MCP_TASK_STORE_DIR"),
-		RemediationStoreDir: os.Getenv("MCP_REMEDIATION_STORE_DIR"),
-		AllowedHosts:        []string{},
-		AllowedOrigins:      []string{},
+		Timeout:               60,
+		CacheTimeout:          1 * time.Minute,
+		SecurityConfig:        security.NewSecurityConfig(),
+		OAuthConfig:           auth.NewDefaultOAuthConfig(),
+		Transport:             "stdio",
+		Port:                  8000,
+		AccessLevel:           "readonly",
+		EnabledComponents:     []string{},
+		AllowNamespaces:       "",
+		LogLevel:              "info",
+		UseLegacyTools:        os.Getenv("USE_LEGACY_TOOLS") == "true",
+		TokenAuthOnly:         false,
+		TaskStoreDir:          os.Getenv("MCP_TASK_STORE_DIR"),
+		RemediationStoreDir:   os.Getenv("MCP_REMEDIATION_STORE_DIR"),
+		EnableTriageResources: os.Getenv("ENABLE_TRIAGE_RESOURCES") == "true",
+		AllowedHosts:          []string{},
+		AllowedOrigins:        []string{},
 	}
 }
 
@@ -139,6 +141,7 @@ func (cfg *ConfigData) ParseFlags() {
 	flag.IntVar(&cfg.Timeout, "timeout", 600, "Timeout for command execution in seconds, default is 600s")
 	flag.StringVar(&cfg.TaskStoreDir, "task-store-dir", cfg.TaskStoreDir, "Directory for durable MCP Task state; must be a persistent volume for production")
 	flag.StringVar(&cfg.RemediationStoreDir, "remediation-store-dir", cfg.RemediationStoreDir, "Directory for durable remediation plans and approvals; must be a persistent volume")
+	flag.BoolVar(&cfg.EnableTriageResources, "enable-triage-resources", cfg.EnableTriageResources, "Enable bounded read-only AKS triage MCP resources")
 
 	// Security settings
 	flag.StringVar(&cfg.AccessLevel, "access-level", "readonly", "Access level (readonly, readwrite, admin)")
