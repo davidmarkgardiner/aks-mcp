@@ -23,6 +23,7 @@ func GetAllComponents() []Component {
 		{Name: "detectors", Description: "AppLens detector integration for AKS"},
 		{Name: "advisor", Description: "Azure Advisor recommendations for AKS"},
 		{Name: "inspektorgadget", Description: "eBPF-based observability tools"},
+		{Name: "remediation", Description: "Approval-gated remediation planning and verification"},
 
 		// Kubernetes Components
 		{Name: "kubectl", Description: "Core Kubernetes operations"},

@@ -1,0 +1,89 @@
+# Apply this separately from AKS-MCP. It intentionally owns the only mutation
+# identity. Set REMEDIATION_NAMESPACE to the single namespace this worker may
+# restart pods in, and mount the same ReadWriteOnce PVC used by the plan service.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aks-mcp-remediation-worker
+  namespace: REMEDIATION_NAMESPACE
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aks-mcp-remediation-worker
+  namespace: REMEDIATION_NAMESPACE
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aks-mcp-remediation-worker
+  namespace: REMEDIATION_NAMESPACE
+subjects:
+  - kind: ServiceAccount
+    name: aks-mcp-remediation-worker
+    namespace: REMEDIATION_NAMESPACE
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: aks-mcp-remediation-worker
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: aks-mcp-approved-pod-restart
+  namespace: REMEDIATION_NAMESPACE
+spec:
+  serviceAccountName: aks-mcp-remediation-worker
+  entrypoint: approval-and-apply
+  arguments:
+    parameters:
+      - name: plan-id
+      - name: digest
+      - name: approved-by
+      - name: image
+        value: REPLACE_WITH_AKS_MCP_IMAGE
+      - name: remediation-pvc
+        value: REPLACE_WITH_SHARED_REMEDIATION_PVC
+  volumes:
+    - name: remediation-store
+      persistentVolumeClaim:
+        claimName: "{{workflow.parameters.remediation-pvc}}"
+  templates:
+    - name: approval-and-apply
+      steps:
+        - - name: human-approval
+            template: human-approval
+        - - name: record-approval
+            template: record-approval
+        - - name: apply-approved-plan
+            template: apply-approved-plan
+    - name: human-approval
+      suspend: {}
+    - name: record-approval
+      container:
+        image: "{{workflow.parameters.image}}"
+        command: ["/usr/local/bin/aks-mcp-remediation-worker"]
+        args:
+          - --store-dir=/var/lib/aks-mcp/remediation
+          - --plan-id={{workflow.parameters.plan-id}}
+          - --digest={{workflow.parameters.digest}}
+          - --approved-by={{workflow.parameters.approved-by}}
+        volumeMounts:
+          - name: remediation-store
+            mountPath: /var/lib/aks-mcp/remediation
+    - name: apply-approved-plan
+      container:
+        image: "{{workflow.parameters.image}}"
+        command: ["/usr/local/bin/aks-mcp-remediation-worker"]
+        args:
+          - --store-dir=/var/lib/aks-mcp/remediation
+          - --plan-id={{workflow.parameters.plan-id}}
+          - --digest={{workflow.parameters.digest}}
+          - --identity=argo-remediation-worker
+        volumeMounts:
+          - name: remediation-store
+            mountPath: /var/lib/aks-mcp/remediation
