@@ -28,6 +28,7 @@ import (
 	"github.com/Azure/aks-mcp/internal/k8s"
 	"github.com/Azure/aks-mcp/internal/logger"
 	"github.com/Azure/aks-mcp/internal/prompts"
+	"github.com/Azure/aks-mcp/internal/resources"
 	"github.com/Azure/aks-mcp/internal/server/httpsecurity"
 	"github.com/Azure/aks-mcp/internal/tools"
 	"github.com/Azure/aks-mcp/internal/version"
@@ -80,6 +81,9 @@ func (s *Service) Initialize() error {
 
 	// Phase 2: Register all component tools
 	s.registerAllComponents()
+	if s.cfg.EnableTriageResources {
+		resources.RegisterTriageResources(s.mcpServer, s.cfg)
+	}
 
 	logger.Infof("AKS MCP service initialization completed successfully")
 	return nil
@@ -129,7 +133,6 @@ func (s *Service) initializeInfrastructure() error {
 	s.mcpServer = server.NewMCPServer(
 		"AKS MCP",
 		version.GetVersion(),
-		server.WithResourceCapabilities(true, true),
 		server.WithPromptCapabilities(true),
 		server.WithLogging(),
 		server.WithRecovery(),

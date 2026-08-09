@@ -31,6 +31,7 @@ This document describes the configuration parameters for the AKS-MCP Helm chart.
 | `app.logLevel` | Log level (debug, info, warn, error) | `info` |
 | `app.cache` | Enable cache for better performance | `true` |
 | `app.tokenAuthOnly` | Execute kubectl via Azure AKS RunCommand API using user-provided tokens instead of a local kubeconfig. Required for browser-based MCP clients (e.g. Claude Web). Incompatible with `stdio` transport. | `false` |
+| `app.enableTriageResources` | Enable bounded read-only AKS triage MCP resources (`aks://cluster/*`). Only advertises resource capability when enabled. | `false` |
 
 ### Azure Authentication
 

@@ -30,6 +30,9 @@ app:
   # When enabled, tools like kubectl use Azure AKS RunCommand API with user tokens
   # Requires transport to be sse or streamable-http (not compatible with stdio)
   tokenAuthOnly: false
+  # Enable bounded read-only AKS triage MCP resources (aks://cluster/*).
+  # Default is false so resource capability is only advertised when opted in.
+  enableTriageResources: false
 
 # Azure authentication configuration
 azure:

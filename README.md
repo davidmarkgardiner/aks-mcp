@@ -886,6 +886,15 @@ Create a placement to deploy nginx workloads to clusters with app=frontend label
 Show me all ClusterResourcePlacements in my fleet.
 ```
 
+## Triage Resources
+
+AKS-MCP can optionally expose a small set of bounded, read-only MCP resources
+for triage (`aks://cluster/*`). They are disabled by default and must be
+enabled with `ENABLE_TRIAGE_RESOURCES=true` or `--enable-triage-resources`.
+
+See [docs/triage-resources.md](docs/triage-resources.md) for the enablement
+switch, resource contract, and Helm values.
+
 ## Telemetry
 
 Telemetry collection is on by default.
