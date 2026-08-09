@@ -1,0 +1,1 @@
+{"schema_version":"triage.v1","signal":"kubernetes_node_pressure","scope":{"cluster":"aks-a","namespace":"_nodes","namespace_scope":"cluster-wide"},"observed_at":"2026-08-02T10:00:00Z","findings":[{"name":"aks-a-node-0","reason":"MemoryPressure","severity":"warning","observed_at":"2026-08-02T10:00:00Z"}],"truncated":false}
