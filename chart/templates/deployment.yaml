@@ -109,6 +109,10 @@ spec:
             - "--token-auth-only"
             - "true"
             {{- end }}
+            {{- if .Values.app.enableTriageResources }}
+            - "--enable-triage-resources"
+            - "true"
+            {{- end }}
             {{- if .Values.security.allowedHosts }}
             - "--allowed-host"
             - {{ join "," .Values.security.allowedHosts | quote }}
