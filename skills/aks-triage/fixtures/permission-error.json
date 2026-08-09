@@ -1,0 +1,1 @@
+{"schema_version":"triage.v1","signal":"permission_error","scope":{"cluster":"aks-a","namespace":"checkout","namespace_scope":"single-namespace"},"observed_at":"2026-08-02T10:00:00Z","findings":[],"truncated":false,"error":"query failed: access denied for namespace checkout"}
