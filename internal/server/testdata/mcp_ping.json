@@ -1,0 +1,6 @@
+{
+  "jsonrpc": "2.0",
+  "id": "contract-ping-1",
+  "method": "ping",
+  "params": {}
+}

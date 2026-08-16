@@ -1,0 +1,16 @@
+{
+  "jsonrpc": "2.0",
+  "id": "contract-initialize-1",
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-06-18",
+    "capabilities": {
+      "roots": { "listChanged": false },
+      "sampling": {}
+    },
+    "clientInfo": {
+      "name": "contract-fixture-client",
+      "version": "1.0.0"
+    }
+  }
+}

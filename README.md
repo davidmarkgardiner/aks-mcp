@@ -832,6 +832,21 @@ make check
 make release
 ```
 
+#### MCP contract testing
+
+The version-pinned Streamable HTTP initialization/capability contract is documented in the [MCP compatibility matrix](docs/mcp-compatibility.md). Run the focused local suite with:
+
+```bash
+go test -tags withoutebpf ./internal/server -run '^TestMCP.*Contract$' -count=1
+```
+
+The suite uses local fixtures and fakes; it needs neither Azure credentials nor an AKS cluster, and does not treat the Geekom kind homelab as AKS. Repository gates for this configuration are:
+
+```bash
+go vet -tags withoutebpf ./...
+go test -tags withoutebpf ./...
+```
+
 #### Common Development Tasks
 
 ```bash
