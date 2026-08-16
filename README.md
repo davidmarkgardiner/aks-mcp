@@ -858,6 +858,22 @@ make docker-build
 make docker-run
 ```
 
+#### MCP Contract Testing
+
+A deterministic MCP protocol contract suite (`internal/server/mcp_contract_test.go`) covers Streamable HTTP initialization/version negotiation, session-ID handling, the advertised capability shape, and post-initialization client protocol-header propagation, pinned to the literal MCP protocol version `2025-11-25`. It assembles the production-equivalent route and serves it with an in-process `httptest` server. See [docs/mcp-compatibility.md](docs/mcp-compatibility.md) for the honest compatibility matrix (what is contract-tested, what existing Host/Origin tests cover, and what remains deferred).
+
+The suite uses static fixtures and fake backends only — it requires **no Azure credentials and no AKS cluster**, never invokes `az`/`kubectl`, and never contacts Azure. A local kind homelab is not AKS and is not used.
+
+```bash
+# Focused MCP contract suite
+go test -tags withoutebpf ./internal/server -run '^TestMCP.*Contract$' -count=1
+
+# Full local Go gates
+
+go vet -tags withoutebpf ./...
+go test -tags withoutebpf ./...
+```
+
 ### Manual Build
 
 If you prefer to build without the Makefile:
